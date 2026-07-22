@@ -395,7 +395,7 @@ button{ font-family:inherit; cursor:pointer; background:none; border:none; color
     </nav>
 
     <div class="header-actions">
-      <a class="btn btn-primary btn-sm glow-btn" id="headerWhats" href="#" target="_blank" rel="noopener">Agendar</a>
+      <a class="btn btn-primary btn-sm glow-btn" href="#agendamento">Agendar</a>
       <button class="nav-toggle" id="navToggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="mobileMenu">
         <span></span><span></span><span></span>
       </button>
@@ -430,7 +430,7 @@ button{ font-family:inherit; cursor:pointer; background:none; border:none; color
     <p class="hero-lead" data-reveal>Psicologia, neuropsicologia, fisioterapia, pilates e mais quatro especialidades — trabalhando juntas, em um único plano de cuidado.</p>
 
     <div class="hero-ctas" data-reveal>
-      <a class="btn btn-primary glow-btn" id="heroWhatsApp" href="#" target="_blank" rel="noopener">Agendar consulta</a>
+      <a class="btn btn-primary glow-btn" href="#agendamento">Agendar consulta</a>
       <a class="btn btn-outline" href="#especialidades">Ver especialidades</a>
     </div>
   </div>
@@ -807,8 +807,7 @@ button{ font-family:inherit; cursor:pointer; background:none; border:none; color
   }
 
   [
-    "headerWhats", "mobileWhats", "heroWhatsApp",
-    "bookingWhats", "contactWhats", "contactWhatsLink", "whatsappFab"
+    "mobileWhats", "bookingWhats", "contactWhats", "contactWhatsLink", "whatsappFab"
   ].forEach(function (id) {
     var el = document.getElementById(id);
     if (el) el.href = waLink();
