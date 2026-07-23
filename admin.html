@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Gestão — Incrivelmente</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#0C1220; --paper:#FFFFFF; --paper-alt:#F5F6F7;
+    --blue:#1596CE; --blue-deep:#0D7AAE; --blue-bright:#3FCCF5; --blue-tint:#E7F5FB;
+    --green:#1B7A45; --green-tint:#D9F3E2; --red:#A32323; --red-tint:#FBDCDC; --amber:#8A6100; --amber-tint:#FFF3D6;
+    --line:#E4E7EA; --ink-soft:#545C6B; --ink-faint:#8A92A0;
+    --font-display:'Space Grotesk',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+  }
+  *,*::before,*::after{ box-sizing:border-box; }
+  body{ margin:0; font-family:var(--font-body); background:var(--paper); color:var(--ink); line-height:1.5; }
+  h1,h2,h3{ font-family:var(--font-display); margin:0; }
+  p{ margin:0; }
+  button{ font-family:inherit; }
+  .mono{ font-family:var(--font-mono); }
+
+  /* ---- Login screen ---- */
+  .login-screen{ min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--paper); padding:24px; }
+  .login-card{ background:#fff; border:1px solid var(--line); border-radius:20px; padding:40px; width:100%; max-width:380px; box-shadow:0 20px 46px rgba(12,18,32,.08); }
+  .login-card h1{ font-size:1.4rem; margin-bottom:6px; }
+  .login-card p{ color:var(--ink-faint); font-size:.88rem; margin:0 0 24px; }
+  .login-card label{ display:block; font-size:.8rem; font-weight:600; margin-bottom:6px; }
+  .login-card input{ width:100%; padding:12px 14px; border-radius:9px; border:1px solid var(--line); background:var(--paper-alt); color:var(--ink); font-size:.95rem; margin-bottom:16px; }
+  .login-card input:focus{ outline:none; border-color:var(--blue); }
+  .login-card button{ width:100%; padding:13px; border-radius:999px; border:none; background:var(--blue); color:#fff; font-weight:700; font-size:.95rem; cursor:pointer; }
+  .login-card button:hover{ background:var(--blue-deep); }
+  .login-error{ color:var(--red); font-size:.85rem; margin-top:14px; min-height:1.2em; }
+
+  /* ---- App shell ---- */
+  .app{ display:none; min-height:100vh; }
+  .app.is-visible{ display:grid; grid-template-columns:240px 1fr; }
+
+  .sidebar{ background:var(--ink); color:var(--paper); display:flex; flex-direction:column; padding:26px 0; position:sticky; top:0; height:100vh; }
+  .sidebar-brand{ font-family:var(--font-display); font-weight:700; font-size:1.05rem; padding:0 24px 22px; border-bottom:1px solid rgba(247,246,242,.12); margin-bottom:14px; }
+  .sidebar-brand em{ font-style:normal; color:var(--blue-bright); }
+  .sidebar-nav{ display:flex; flex-direction:column; gap:2px; flex:1; padding:0 12px; }
+  .sidebar-nav button{
+    display:flex; align-items:center; gap:12px; text-align:left; background:none; border:none; color:rgba(247,246,242,.7);
+    padding:12px 14px; border-radius:10px; font-size:.9rem; cursor:pointer; transition:background .2s, color .2s;
+  }
+  .sidebar-nav button svg{ width:18px; height:18px; flex-shrink:0; opacity:.85; }
+  .sidebar-nav button:hover{ background:rgba(247,246,242,.06); color:var(--paper); }
+  .sidebar-nav button.is-active{ background:rgba(63,204,245,.14); color:var(--paper); }
+  .sidebar-nav button.is-active svg{ color:var(--blue-bright); opacity:1; }
+  .nav-soon{ font-family:var(--font-mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.05em; background:rgba(247,246,242,.12); padding:2px 6px; border-radius:5px; margin-left:auto; color:rgba(247,246,242,.55); }
+
+  .sidebar-foot{ padding:14px 24px 0; border-top:1px solid rgba(247,246,242,.12); margin-top:14px; }
+  .role-badge{ font-family:var(--font-mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.06em; background:rgba(63,204,245,.16); color:var(--blue-bright); padding:3px 10px; border-radius:999px; display:inline-block; margin-bottom:8px; }
+  .sidebar-foot .who{ font-family:var(--font-mono); font-size:.72rem; color:rgba(247,246,242,.5); display:block; margin-bottom:10px; word-break:break-all; }
+  .logout-btn{ width:100%; background:transparent; border:1px solid rgba(247,246,242,.25); color:var(--paper); padding:9px; border-radius:999px; font-size:.82rem; cursor:pointer; }
+  .logout-btn:hover{ background:rgba(247,246,242,.08); }
+
+  main{ padding:34px 40px; max-width:1180px; }
+  .panel{ display:none; }
+  .panel.is-active{ display:block; animation:fadeIn .35s ease; }
+  @keyframes fadeIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
+
+  .panel-head{ margin-bottom:26px; }
+  .panel-head .mono-tag{ font-family:var(--font-mono); font-size:.7rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--blue-deep); display:block; margin-bottom:6px; }
+  .panel-head h2{ font-size:1.5rem; }
+  .panel-head p{ color:var(--ink-soft); font-size:.92rem; margin-top:6px; }
+
+  .stats{ display:flex; gap:16px; margin-bottom:28px; flex-wrap:wrap; }
+  .stat{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 22px; min-width:150px; flex:1; }
+  .stat .num{ font-family:var(--font-display); font-size:1.7rem; font-weight:700; }
+  .stat .label{ font-family:var(--font-mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); margin-top:2px; }
+
+  .filters{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+  .filters button{ font-family:var(--font-mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; padding:9px 16px; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--ink-soft); cursor:pointer; }
+  .filters button.is-active{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+  .search-input{ margin-left:auto; padding:9px 14px; border-radius:999px; border:1px solid var(--line); font-size:.85rem; min-width:220px; }
+  .search-input:focus{ outline:none; border-color:var(--blue); }
+
+  .table-wrap{ background:#fff; border:1px solid var(--line); border-radius:16px; overflow:hidden; overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; font-size:.87rem; }
+  thead th{ text-align:left; font-family:var(--font-mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); padding:13px 16px; border-bottom:1px solid var(--line); background:var(--paper-alt); white-space:nowrap; }
+  tbody td{ padding:13px 16px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:var(--paper-alt); }
+  .msg-cell{ max-width:200px; color:var(--ink-soft); font-size:.83rem; }
+
+  .badge{ font-family:var(--font-mono); font-size:.68rem; padding:5px 10px; border-radius:999px; text-transform:uppercase; letter-spacing:.03em; display:inline-block; white-space:nowrap; }
+  .badge-pendente{ background:var(--amber-tint); color:var(--amber); }
+  .badge-confirmado{ background:var(--green-tint); color:var(--green); }
+  .badge-cancelado{ background:var(--red-tint); color:var(--red); }
+
+  .row-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .row-actions button{ font-size:.74rem; padding:7px 11px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; white-space:nowrap; }
+  .row-actions .confirm{ color:var(--green); border-color:#B9E7C9; }
+  .row-actions .cancel{ color:var(--red); border-color:#F3C2C2; }
+  .row-actions .delete{ color:var(--ink-faint); }
+  .row-actions button:hover{ filter:brightness(.96); }
+
+  .valor-input{ width:78px; padding:6px 8px; border-radius:7px; border:1px solid var(--line); font-size:.83rem; font-family:var(--font-mono); }
+  .pago-toggle{ display:flex; align-items:center; gap:6px; cursor:pointer; }
+
+  .empty-state{ padding:60px 20px; text-align:center; color:var(--ink-faint); }
+  .realtime-dot{ width:7px; height:7px; border-radius:50%; background:var(--blue-bright); display:inline-block; margin-right:6px; animation:pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:.4; } 50%{ opacity:1; } }
+
+  .patient-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:16px; }
+  .patient-card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .patient-card h3{ font-size:1.02rem; margin-bottom:4px; }
+  .patient-card .meta{ font-size:.82rem; color:var(--ink-soft); margin-bottom:10px; }
+  .patient-card .figures{ display:flex; gap:18px; font-family:var(--font-mono); font-size:.78rem; color:var(--ink-faint); }
+  .patient-card .figures strong{ color:var(--ink); display:block; font-family:var(--font-display); font-size:1.1rem; }
+
+  .fin-grid{ display:grid; grid-template-columns:1.3fr .7fr; gap:20px; align-items:start; }
+  .breakdown-list{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:6px 22px; }
+  .breakdown-row{ display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid var(--line); }
+  .breakdown-row:last-child{ border-bottom:none; }
+  .breakdown-row .name{ width:150px; font-size:.88rem; font-weight:600; flex-shrink:0; }
+  .breakdown-bar{ flex:1; height:8px; background:var(--paper-alt); border-radius:6px; overflow:hidden; }
+  .breakdown-bar span{ display:block; height:100%; background:var(--blue); border-radius:6px; }
+  .breakdown-row .value{ font-family:var(--font-mono); font-size:.82rem; width:110px; text-align:right; flex-shrink:0; }
+
+  .service-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:16px; }
+  .service-card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .service-card h3{ font-size:.98rem; margin-bottom:14px; }
+  .service-card label{ display:block; font-size:.76rem; font-weight:600; color:var(--ink-faint); margin-bottom:4px; text-transform:uppercase; letter-spacing:.04em; }
+  .service-card .row{ display:flex; gap:10px; margin-bottom:12px; }
+  .service-card input{ width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--line); font-family:var(--font-mono); font-size:.88rem; }
+  .service-card button{ width:100%; padding:9px; border-radius:999px; border:none; background:var(--ink); color:#fff; font-size:.82rem; cursor:pointer; }
+  .service-card button:hover{ background:var(--blue-deep); }
+  .service-saved{ font-size:.75rem; color:var(--green); margin-top:8px; min-height:1.1em; }
+
+  .soon-card{ background:var(--paper-alt); border:1px dashed var(--line); border-radius:18px; padding:44px; text-align:center; max-width:560px; }
+  .soon-card .soon-tag{ font-family:var(--font-mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); background:#fff; border:1px solid var(--line); display:inline-block; padding:5px 12px; border-radius:999px; margin-bottom:16px; }
+  .soon-card h3{ font-size:1.2rem; margin-bottom:10px; }
+  .soon-card p{ color:var(--ink-soft); font-size:.92rem; margin-bottom:18px; }
+  .soon-card ul{ text-align:left; margin:0; padding:0; list-style:none; display:inline-flex; flex-direction:column; gap:8px; }
+  .soon-card ul li{ font-size:.86rem; color:var(--ink-soft); padding-left:22px; position:relative; }
+  .soon-card ul li::before{ content:'—'; position:absolute; left:0; color:var(--ink-faint); }
+
+  .new-appt-btn{ background:var(--ink); color:#fff; border:none; padding:12px 20px; border-radius:999px; font-size:.85rem; font-weight:600; cursor:pointer; flex-shrink:0; }
+  .new-appt-btn:hover{ background:var(--blue-deep); }
+
+  .role-select, .spec-select{ padding:7px 10px; border-radius:8px; border:1px solid var(--line); font-size:.83rem; font-family:inherit; background:#fff; }
+
+  .modal-overlay{ position:fixed; inset:0; background:rgba(12,18,32,.45); display:none; align-items:center; justify-content:center; z-index:200; padding:20px; }
+  .modal-overlay.is-open{ display:flex; }
+  .modal-card{ background:#fff; border-radius:20px; padding:32px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; }
+  .modal-card h3{ font-size:1.15rem; margin-bottom:6px; }
+  .modal-card .modal-sub{ color:var(--ink-faint); font-size:.85rem; margin-bottom:20px; }
+  .modal-card label{ display:block; font-size:.8rem; font-weight:600; margin-bottom:6px; margin-top:14px; }
+  .modal-card input, .modal-card select, .modal-card textarea{ width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); font-family:inherit; font-size:.92rem; }
+  .modal-actions{ display:flex; gap:10px; margin-top:24px; }
+  .modal-actions button{ flex:1; padding:12px; border-radius:999px; font-size:.88rem; cursor:pointer; }
+  .modal-cancel{ background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .modal-save{ background:var(--ink); border:none; color:#fff; font-weight:600; }
+  .modal-save:hover{ background:var(--blue-deep); }
+  .modal-error{ color:var(--red); font-size:.82rem; margin-top:10px; min-height:1.1em; }
+
+  @media (max-width: 900px){
+    .app.is-visible{ grid-template-columns:1fr; }
+    .sidebar{ position:relative; height:auto; flex-direction:row; overflow-x:auto; padding:14px; align-items:center; }
+    .sidebar-brand{ border:none; padding:0 16px 0 4px; margin:0; }
+    .sidebar-nav{ flex-direction:row; padding:0; }
+    .sidebar-nav button span:not(.nav-soon){ display:none; }
+    .sidebar-foot{ display:none; }
+    main{ padding:24px 18px; }
+    .fin-grid{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <h1>Sistema de Gestão</h1>
+    <p>Incrivelmente — acesso restrito à equipe.</p>
+    <form id="loginForm">
+      <label>E-mail</label>
+      <input type="email" id="loginEmail" required autocomplete="username">
+      <label>Senha</label>
+      <input type="password" id="loginPassword" required autocomplete="current-password">
+      <button type="submit">Entrar</button>
+      <p class="login-error" id="loginError"></p>
+    </form>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <aside class="sidebar">
+    <div class="sidebar-brand">Incrível<em>mente</em></div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <button data-tab="overview" data-roles="admin,recepcao,profissional" class="is-active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <span>Visão geral</span>
+      </button>
+      <button data-tab="agendamentos" data-roles="admin,recepcao,profissional">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+        <span>Agendamentos</span>
+      </button>
+      <button data-tab="pacientes" data-roles="admin,recepcao,profissional">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="7" r="2.3"/><path d="M16 14.3c2.6.4 4 2.3 4 5.2"/></svg>
+        <span>Pacientes</span>
+      </button>
+      <button data-tab="financeiro" data-roles="admin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 6.5c0-1.9-2.2-3.5-5-3.5s-5 1.4-5 3.2c0 4 10 2 10 6 0 1.8-2.2 3.2-5 3.2s-5-1.6-5-3.5"/></svg>
+        <span>Financeiro</span>
+      </button>
+      <button data-tab="servicos" data-roles="admin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v5H4zM4 13h7v7H4zM14 13h6v7h-6z"/></svg>
+        <span>Serviços</span>
+      </button>
+      <button data-tab="profissionais" data-roles="admin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c.5-4 3.5-6.5 7.5-6.5s7 2.5 7.5 6.5"/></svg>
+        <span>Profissionais</span>
+      </button>
+      <button data-tab="configuracoes" data-roles="admin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a7.9 7.9 0 0 0 0-3l2-1.5-2-3.4-2.3.9a8 8 0 0 0-2.6-1.5L14 2h-4l-.5 2.5a8 8 0 0 0-2.6 1.5l-2.3-.9-2 3.4 2 1.5a7.9 7.9 0 0 0 0 3l-2 1.5 2 3.4 2.3-.9c.7.6 1.6 1.1 2.6 1.5L10 22h4l.5-2.5a8 8 0 0 0 2.6-1.5l2.3.9 2-3.4z"/></svg>
+        <span>Configurações</span><span class="nav-soon">em breve</span>
+      </button>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="role-badge" id="roleBadge"></span>
+      <span class="who mono"><span class="realtime-dot"></span><span id="whoEmail"></span></span>
+      <button class="logout-btn" id="logoutBtn">Sair</button>
+    </div>
+  </aside>
+
+  <main>
+
+    <section class="panel is-active" id="panel-overview">
+      <div class="panel-head">
+        <span class="mono-tag">VISÃO GERAL</span>
+        <h2>Bom te ver por aqui.</h2>
+        <p>Um resumo rápido de hoje e deste mês.</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="num" id="ovHoje">0</div><div class="label">Agendamentos hoje</div></div>
+        <div class="stat"><div class="num" id="ovPendentes">0</div><div class="label">Pendentes de confirmar</div></div>
+        <div class="stat"><div class="num" id="ovSemana">0</div><div class="label">Agendamentos esta semana</div></div>
+        <div class="stat"><div class="num" id="ovReceita">R$ 0</div><div class="label">Recebido este mês</div></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Horário</th><th>Paciente</th><th>Especialidade</th><th>Status</th></tr></thead>
+          <tbody id="ovTodayBody"></tbody>
+        </table>
+        <div class="empty-state" id="ovEmptyState" style="display:none;">Nenhum agendamento para hoje.</div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-agendamentos">
+      <div class="panel-head" style="display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap;">
+        <div>
+          <span class="mono-tag">AGENDAMENTOS</span>
+          <h2>Todos os pedidos</h2>
+          <p>Confirme, cancele e registre pagamentos — tudo sincronizado com o site em tempo real.</p>
+        </div>
+        <button class="new-appt-btn" id="openNewAppt">+ Novo agendamento</button>
+      </div>
+      <div class="filters" id="filters">
+        <button data-filter="todos" class="is-active">Todos</button>
+        <button data-filter="pendente">Pendentes</button>
+        <button data-filter="confirmado">Confirmados</button>
+        <button data-filter="cancelado">Cancelados</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Paciente</th><th>Contato</th><th>Especialidade</th><th>Quando</th><th>Mensagem</th><th>Valor</th><th>Status</th><th>Ações</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState" style="display:none;">Nenhum agendamento por aqui ainda.</div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-pacientes">
+      <div class="panel-head">
+        <span class="mono-tag">PACIENTES</span>
+        <h2>Quem já passou pela clínica</h2>
+        <p>Construído a partir do histórico de agendamentos — sem cadastro duplicado.</p>
+      </div>
+      <div class="filters">
+        <input type="text" class="search-input" id="patientSearch" placeholder="Buscar por nome ou telefone...">
+      </div>
+      <div class="patient-grid" id="patientGrid"></div>
+      <div class="empty-state" id="patientEmpty" style="display:none;">Nenhum paciente encontrado ainda.</div>
+    </section>
+
+    <section class="panel" id="panel-financeiro">
+      <div class="panel-head">
+        <span class="mono-tag">FINANCEIRO</span>
+        <h2>Como anda o caixa</h2>
+        <p>Baseado no valor definido em cada agendamento confirmado.</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="num" id="finRecebido">R$ 0</div><div class="label">Recebido este mês</div></div>
+        <div class="stat"><div class="num" id="finAReceber">R$ 0</div><div class="label">Confirmado, a receber</div></div>
+        <div class="stat"><div class="num" id="finTicket">R$ 0</div><div class="label">Ticket médio</div></div>
+      </div>
+      <div class="fin-grid">
+        <div>
+          <h3 style="font-size:1rem;margin-bottom:12px;">Receita por especialidade (mês atual)</h3>
+          <div class="breakdown-list" id="finBreakdown"></div>
+        </div>
+        <div>
+          <h3 style="font-size:1rem;margin-bottom:12px;">Pagamentos pendentes</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Paciente</th><th>Valor</th><th></th></tr></thead>
+              <tbody id="finPendingBody"></tbody>
+            </table>
+            <div class="empty-state" id="finPendingEmpty" style="display:none; padding:30px;">Tudo em dia por aqui.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-servicos">
+      <div class="panel-head">
+        <span class="mono-tag">SERVIÇOS</span>
+        <h2>Preço e duração por especialidade</h2>
+        <p>Esses valores alimentam o Financeiro e o formulário de agendamento do site.</p>
+      </div>
+      <div class="service-grid" id="serviceGrid"></div>
+    </section>
+
+    <section class="panel" id="panel-profissionais">
+      <div class="panel-head">
+        <span class="mono-tag">PROFISSIONAIS</span>
+        <h2>Equipe e permissões</h2>
+        <p>Defina o papel de cada login — isso controla o que cada pessoa vê no sistema.</p>
+      </div>
+
+      <div class="soon-card" style="text-align:left; max-width:none; margin-bottom:24px;">
+        <span class="soon-tag">Como criar um novo login</span>
+        <p style="margin-bottom:0;">Ainda é feito no Supabase: <strong>Authentication → Users → Add user</strong>. Assim que criado, ele aparece aqui automaticamente com o papel padrão "Recepção" — só ajustar abaixo.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Especialidade</th><th></th></tr></thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+        <div class="empty-state" id="usersEmpty" style="display:none;">Nenhum usuário encontrado.</div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-configuracoes">
+      <div class="panel-head">
+        <span class="mono-tag">CONFIGURAÇÕES</span>
+        <h2>Preferências da clínica</h2>
+      </div>
+      <div class="soon-card">
+        <span class="soon-tag">Em construção</span>
+        <h3>Horários e regras gerais</h3>
+        <p>Hoje o horário de funcionamento está fixo no código do site. Essa aba vai deixar tudo editável por aqui.</p>
+        <ul>
+          <li>Horário de funcionamento e dias da semana</li>
+          <li>Duração padrão de cada tipo de consulta</li>
+          <li>Bloqueio de datas (feriados, folgas)</li>
+          <li>Usuários com acesso ao sistema</li>
+        </ul>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="modal-overlay" id="newApptOverlay">
+  <div class="modal-card">
+    <h3>Novo agendamento</h3>
+    <p class="modal-sub">Para encaixes, ligações ou pacientes sem acesso ao site.</p>
+    <form id="newApptForm">
+      <label>Nome<input type="text" id="naNome" required></label>
+      <label>Telefone<input type="tel" id="naTelefone" required placeholder="(61) 90000-0000"></label>
+      <label>E-mail <span style="font-weight:400;color:var(--ink-faint);">(opcional)</span><input type="email" id="naEmail"></label>
+      <label>Especialidade
+        <select id="naEspecialidade" required>
+          <option value="" disabled selected>Selecione</option>
+          <option>Psicologia</option><option>Neuropsicologia</option><option>Acupuntura</option>
+          <option>Fisioterapia</option><option>Terapia Ocupacional</option><option>Pilates</option><option>Fonoaudiologia</option>
+        </select>
+      </label>
+      <div style="display:flex; gap:12px;">
+        <label style="flex:1;">Data<input type="date" id="naData" required></label>
+        <label style="flex:1;">Horário<input type="time" id="naHora" required></label>
+      </div>
+      <label>Mensagem <span style="font-weight:400;color:var(--ink-faint);">(opcional)</span><textarea id="naMensagem" rows="2"></textarea></label>
+      <p class="modal-error" id="naError"></p>
+      <div class="modal-actions">
+        <button type="button" class="modal-cancel" id="closeNewAppt">Cancelar</button>
+        <button type="submit" class="modal-save">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://djjangisxororttjqsjl.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_tBzEI4QPC5P1yk2-b4cxJw_KyzczscV";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const loginScreen = document.getElementById("loginScreen");
+const appEl = document.getElementById("app");
+const loginForm = document.getElementById("loginForm");
+const loginError = document.getElementById("loginError");
+const whoEmail = document.getElementById("whoEmail");
+
+let allRows = [];
+let allServices = [];
+let allUsers = [];
+let currentFilter = "todos";
+let currentProfile = null;
+
+const ROLE_LABELS = { admin: "Admin", recepcao: "Recepção", profissional: "Profissional" };
+
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginError.textContent = "";
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { loginError.textContent = "E-mail ou senha incorretos."; return; }
+  showApp();
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  await sb.auth.signOut();
+  location.reload();
+});
+
+async function showApp() {
+  const { data } = await sb.auth.getSession();
+  if (!data.session) return;
+
+  const { data: profile, error: profileError } = await sb
+    .from("profiles").select("*").eq("id", data.session.user.id).single();
+
+  if (profileError || !profile) {
+    loginError.textContent = "Seu login não tem um perfil configurado ainda. Peça para o admin verificar.";
+    await sb.auth.signOut();
+    return;
+  }
+
+  currentProfile = profile;
+  whoEmail.textContent = profile.email || data.session.user.email;
+  document.getElementById("roleBadge").textContent = ROLE_LABELS[profile.role] || profile.role;
+
+  applyRoleVisibility();
+
+  loginScreen.style.display = "none";
+  appEl.classList.add("is-visible");
+
+  await Promise.all([loadAppointments(), loadServices()]);
+  if (currentProfile.role === "admin") await loadUsers();
+  subscribeRealtime();
+}
+
+function applyRoleVisibility() {
+  document.querySelectorAll(".sidebar-nav button[data-roles]").forEach((btn) => {
+    const roles = btn.getAttribute("data-roles").split(",");
+    const allowed = roles.indexOf(currentProfile.role) !== -1;
+    btn.style.display = allowed ? "" : "none";
+  });
+  document.getElementById("openNewAppt").style.display =
+    currentProfile.role === "admin" || currentProfile.role === "recepcao" || currentProfile.role === "profissional" ? "" : "none";
+}
+
+(async () => {
+  const { data } = await sb.auth.getSession();
+  if (data.session) showApp();
+})();
+
+document.getElementById("sidebarNav").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-tab]");
+  if (!btn) return;
+  document.querySelectorAll(".sidebar-nav button").forEach((b) => b.classList.remove("is-active"));
+  document.querySelectorAll(".panel").forEach((p) => p.classList.remove("is-active"));
+  btn.classList.add("is-active");
+  const tab = btn.getAttribute("data-tab");
+  document.getElementById("panel-" + tab).classList.add("is-active");
+  if (tab === "profissionais" && currentProfile && currentProfile.role === "admin") loadUsers();
+});
+
+async function loadAppointments() {
+  const { data, error } = await sb.from("agendamentos").select("*").order("data", { ascending: true }).order("hora", { ascending: true });
+  if (error) { console.error(error); return; }
+  allRows = data || [];
+  renderAgendamentos();
+  renderOverview();
+  renderPacientes();
+  renderFinanceiro();
+}
+
+async function loadServices() {
+  const { data, error } = await sb.from("servicos").select("*").order("especialidade");
+  if (error) { console.error(error); return; }
+  allServices = data || [];
+  renderServicos();
+}
+
+function subscribeRealtime() {
+  sb.channel("gestao-live")
+    .on("postgres_changes", { event: "*", schema: "public", table: "agendamentos" }, () => loadAppointments())
+    .subscribe();
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str == null ? "" : String(str);
+  return div.innerHTML;
+}
+function formatDate(d) {
+  if (!d) return "";
+  const [y, m, day] = d.split("-");
+  return day + "/" + m + "/" + y;
+}
+function brl(n) {
+  n = Number(n) || 0;
+  return "R$ " + n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function startOfWeek() {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff)).toISOString().slice(0, 10);
+}
+function currentMonthKey() { return new Date().toISOString().slice(0, 7); }
+
+function renderOverview() {
+  const hoje = todayStr();
+  const semanaInicio = startOfWeek();
+  const mes = currentMonthKey();
+
+  const hojeRows = allRows.filter((r) => r.data === hoje && r.status !== "cancelado");
+  document.getElementById("ovHoje").textContent = hojeRows.length;
+  document.getElementById("ovPendentes").textContent = allRows.filter((r) => r.status === "pendente").length;
+  document.getElementById("ovSemana").textContent = allRows.filter((r) => r.data >= semanaInicio && r.status !== "cancelado").length;
+
+  const receitaMes = allRows
+    .filter((r) => (r.data || "").slice(0, 7) === mes && r.pago)
+    .reduce((sum, r) => sum + (Number(r.valor) || 0), 0);
+  document.getElementById("ovReceita").textContent = brl(receitaMes);
+
+  const tbody = document.getElementById("ovTodayBody");
+  tbody.innerHTML = "";
+  if (hojeRows.length === 0) {
+    document.getElementById("ovEmptyState").style.display = "block";
+  } else {
+    document.getElementById("ovEmptyState").style.display = "none";
+    hojeRows.forEach((r) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${(r.hora || "").slice(0,5)}</td><td>${escapeHtml(r.nome)}</td><td>${escapeHtml(r.especialidade || "—")}</td><td><span class="badge badge-${r.status}">${r.status}</span></td>`;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+document.getElementById("filters").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-filter]");
+  if (!btn) return;
+  document.querySelectorAll("#filters button").forEach((b) => b.classList.remove("is-active"));
+  btn.classList.add("is-active");
+  currentFilter = btn.getAttribute("data-filter");
+  renderAgendamentos();
+});
+
+function renderAgendamentos() {
+  const rows = currentFilter === "todos" ? allRows : allRows.filter((r) => r.status === currentFilter);
+  const tbody = document.getElementById("tableBody");
+  const emptyState = document.getElementById("emptyState");
+  tbody.innerHTML = "";
+
+  if (rows.length === 0) { emptyState.style.display = "block"; return; }
+  emptyState.style.display = "none";
+
+  rows.forEach((r) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(r.nome)}</strong></td>
+      <td>${escapeHtml(r.telefone)}${r.email ? "<br><span style='color:var(--ink-faint);font-size:.82rem;'>" + escapeHtml(r.email) + "</span>" : ""}</td>
+      <td>${escapeHtml(r.especialidade || "—")}</td>
+      <td>${formatDate(r.data)}<br>${(r.hora || "").slice(0,5)}</td>
+      <td class="msg-cell">${r.mensagem ? escapeHtml(r.mensagem) : "<span style='color:var(--ink-faint)'>—</span>"}</td>
+      <td>
+        <input type="number" step="0.01" class="valor-input" data-id="${r.id}" value="${r.valor != null ? r.valor : ""}" placeholder="0,00">
+        <label class="pago-toggle" style="margin-top:6px;font-size:.75rem;color:var(--ink-soft);">
+          <input type="checkbox" data-id="${r.id}" class="pago-checkbox" ${r.pago ? "checked" : ""}> pago
+        </label>
+      </td>
+      <td><span class="badge badge-${r.status}">${r.status}</span></td>
+      <td>
+        <div class="row-actions">
+          ${r.status !== "confirmado" ? `<button class="confirm" data-id="${r.id}" data-action="confirmado">Confirmar</button>` : ""}
+          ${r.status !== "cancelado" ? `<button class="cancel" data-id="${r.id}" data-action="cancelado">Cancelar</button>` : ""}
+          <button class="delete" data-id="${r.id}" data-action="delete">Excluir</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("tableBody").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const id = btn.getAttribute("data-id");
+  const action = btn.getAttribute("data-action");
+  if (action === "delete") {
+    if (!confirm("Excluir este agendamento definitivamente?")) return;
+    await sb.from("agendamentos").delete().eq("id", id);
+  } else {
+    await sb.from("agendamentos").update({ status: action }).eq("id", id);
+  }
+  await loadAppointments();
+});
+
+document.getElementById("tableBody").addEventListener("change", async (e) => {
+  if (e.target.classList.contains("valor-input")) {
+    const id = e.target.getAttribute("data-id");
+    const valor = parseFloat(e.target.value.replace(",", ".")) || 0;
+    await sb.from("agendamentos").update({ valor }).eq("id", id);
+    await loadAppointments();
+  }
+  if (e.target.classList.contains("pago-checkbox")) {
+    const id = e.target.getAttribute("data-id");
+    await sb.from("agendamentos").update({ pago: e.target.checked }).eq("id", id);
+    await loadAppointments();
+  }
+});
+
+function getPatients() {
+  const map = {};
+  allRows.forEach((r) => {
+    const key = (r.telefone || r.nome || "").replace(/\D/g, "") || r.nome;
+    if (!map[key]) map[key] = { nome: r.nome, telefone: r.telefone, email: r.email, count: 0, last: r.data };
+    map[key].count++;
+    if (r.data > map[key].last) map[key].last = r.data;
+    if (r.data >= map[key].last) map[key].nome = r.nome;
+  });
+  return Object.values(map).sort((a, b) => (b.last || "").localeCompare(a.last || ""));
+}
+
+function renderPacientes(filterText) {
+  const grid = document.getElementById("patientGrid");
+  const empty = document.getElementById("patientEmpty");
+  let patients = getPatients();
+  if (filterText) {
+    const f = filterText.toLowerCase();
+    patients = patients.filter((p) => (p.nome || "").toLowerCase().includes(f) || (p.telefone || "").includes(f));
+  }
+  grid.innerHTML = "";
+  if (patients.length === 0) { empty.style.display = "block"; return; }
+  empty.style.display = "none";
+  patients.forEach((p) => {
+    const card = document.createElement("div");
+    card.className = "patient-card";
+    card.innerHTML = `
+      <h3>${escapeHtml(p.nome)}</h3>
+      <div class="meta">${escapeHtml(p.telefone || "—")}${p.email ? " · " + escapeHtml(p.email) : ""}</div>
+      <div class="figures">
+        <div><strong>${p.count}</strong>consultas</div>
+        <div><strong>${formatDate(p.last)}</strong>última visita</div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+document.getElementById("patientSearch").addEventListener("input", (e) => renderPacientes(e.target.value));
+
+function renderFinanceiro() {
+  const mes = currentMonthKey();
+  const rowsMes = allRows.filter((r) => (r.data || "").slice(0, 7) === mes && r.status !== "cancelado");
+
+  const recebido = rowsMes.filter((r) => r.pago).reduce((s, r) => s + (Number(r.valor) || 0), 0);
+  const aReceber = rowsMes.filter((r) => r.status === "confirmado" && !r.pago).reduce((s, r) => s + (Number(r.valor) || 0), 0);
+  const pagos = rowsMes.filter((r) => r.pago);
+  const ticket = pagos.length ? recebido / pagos.length : 0;
+
+  document.getElementById("finRecebido").textContent = brl(recebido);
+  document.getElementById("finAReceber").textContent = brl(aReceber);
+  document.getElementById("finTicket").textContent = brl(ticket);
+
+  const bySpec = {};
+  rowsMes.filter((r) => r.pago).forEach((r) => {
+    const k = r.especialidade || "Outro";
+    bySpec[k] = (bySpec[k] || 0) + (Number(r.valor) || 0);
+  });
+  const maxVal = Math.max(1, ...Object.values(bySpec));
+  const breakdown = document.getElementById("finBreakdown");
+  breakdown.innerHTML = "";
+  const entries = Object.entries(bySpec).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) {
+    breakdown.innerHTML = '<div class="empty-state">Nenhuma receita registrada este mês ainda.</div>';
+  } else {
+    entries.forEach(([name, val]) => {
+      const row = document.createElement("div");
+      row.className = "breakdown-row";
+      row.innerHTML = `<div class="name">${escapeHtml(name)}</div><div class="breakdown-bar"><span style="width:${(val/maxVal*100).toFixed(0)}%"></span></div><div class="value">${brl(val)}</div>`;
+      breakdown.appendChild(row);
+    });
+  }
+
+  const pending = allRows.filter((r) => r.status === "confirmado" && !r.pago);
+  const pendingBody = document.getElementById("finPendingBody");
+  pendingBody.innerHTML = "";
+  document.getElementById("finPendingEmpty").style.display = pending.length ? "none" : "block";
+  pending.forEach((r) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${escapeHtml(r.nome)}</td><td>${brl(r.valor)}</td><td><button class="confirm" data-id="${r.id}">Marcar pago</button></td>`;
+    pendingBody.appendChild(tr);
+  });
+}
+
+document.getElementById("finPendingBody").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-id]");
+  if (!btn) return;
+  await sb.from("agendamentos").update({ pago: true }).eq("id", btn.getAttribute("data-id"));
+  await loadAppointments();
+});
+
+function renderServicos() {
+  const grid = document.getElementById("serviceGrid");
+  grid.innerHTML = "";
+  allServices.forEach((s) => {
+    const card = document.createElement("div");
+    card.className = "service-card";
+    card.innerHTML = `
+      <h3>${escapeHtml(s.especialidade)}</h3>
+      <div class="row">
+        <div style="flex:1"><label>Valor (R$)</label><input type="number" step="0.01" class="svc-valor" value="${s.valor_padrao}"></div>
+        <div style="flex:1"><label>Duração (min)</label><input type="number" class="svc-duracao" value="${s.duracao_min}"></div>
+      </div>
+      <button class="svc-save" data-id="${s.id}">Salvar</button>
+      <p class="service-saved" data-saved-for="${s.id}"></p>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+document.getElementById("serviceGrid").addEventListener("click", async (e) => {
+  const btn = e.target.closest(".svc-save");
+  if (!btn) return;
+  const card = btn.closest(".service-card");
+  const valor = parseFloat(card.querySelector(".svc-valor").value.replace(",", ".")) || 0;
+  const duracao = parseInt(card.querySelector(".svc-duracao").value, 10) || 50;
+  const id = btn.getAttribute("data-id");
+  const { error } = await sb.from("servicos").update({ valor_padrao: valor, duracao_min: duracao }).eq("id", id);
+  const savedMsg = card.querySelector(".service-saved");
+  savedMsg.textContent = error ? "Erro ao salvar." : "Salvo ✓";
+  if (!error) setTimeout(() => { savedMsg.textContent = ""; }, 2000);
+  await loadServices();
+});
+
+/* ---------- Profissionais / usuários e papéis ---------- */
+const ESPECIALIDADES = ["Psicologia", "Neuropsicologia", "Acupuntura", "Fisioterapia", "Terapia Ocupacional", "Pilates", "Fonoaudiologia"];
+
+async function loadUsers() {
+  const { data, error } = await sb.from("profiles").select("*").order("created_at", { ascending: true });
+  if (error) { console.error(error); return; }
+  allUsers = data || [];
+  renderUsers();
+}
+
+function renderUsers() {
+  const tbody = document.getElementById("usersBody");
+  const empty = document.getElementById("usersEmpty");
+  tbody.innerHTML = "";
+  if (allUsers.length === 0) { empty.style.display = "block"; return; }
+  empty.style.display = "none";
+
+  allUsers.forEach((u) => {
+    const tr = document.createElement("tr");
+    const isYou = currentProfile && u.id === currentProfile.id;
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(u.nome || "—")}</strong>${isYou ? " <span style='color:var(--ink-faint);font-size:.78rem;'>(você)</span>" : ""}</td>
+      <td>${escapeHtml(u.email || "—")}</td>
+      <td>
+        <select class="role-select" data-id="${u.id}" ${isYou ? "disabled" : ""}>
+          <option value="admin" ${u.role === "admin" ? "selected" : ""}>Admin</option>
+          <option value="recepcao" ${u.role === "recepcao" ? "selected" : ""}>Recepção</option>
+          <option value="profissional" ${u.role === "profissional" ? "selected" : ""}>Profissional</option>
+        </select>
+      </td>
+      <td>
+        <select class="spec-select" data-id="${u.id}" ${u.role !== "profissional" ? "disabled" : ""}>
+          <option value="">—</option>
+          ${ESPECIALIDADES.map((e) => `<option value="${e}" ${u.especialidade === e ? "selected" : ""}>${e}</option>`).join("")}
+        </select>
+      </td>
+      <td><button class="row-actions confirm" data-save="${u.id}" style="padding:7px 14px;border-radius:8px;border:1px solid #B9E7C9;color:var(--green);background:#fff;cursor:pointer;">Salvar</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("usersBody").addEventListener("change", (e) => {
+  if (e.target.classList.contains("role-select")) {
+    const row = e.target.closest("tr");
+    const specSelect = row.querySelector(".spec-select");
+    specSelect.disabled = e.target.value !== "profissional";
+    if (e.target.value !== "profissional") specSelect.value = "";
+  }
+});
+
+document.getElementById("usersBody").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-save]");
+  if (!btn) return;
+  const id = btn.getAttribute("data-save");
+  const row = btn.closest("tr");
+  const role = row.querySelector(".role-select").value;
+  const especialidade = row.querySelector(".spec-select").value || null;
+  btn.textContent = "Salvando...";
+  const { error } = await sb.from("profiles").update({ role, especialidade }).eq("id", id);
+  btn.textContent = error ? "Erro" : "Salvo ✓";
+  setTimeout(() => { btn.textContent = "Salvar"; }, 1800);
+  await loadUsers();
+});
+
+/* ---------- Modal: novo agendamento manual ---------- */
+const newApptOverlay = document.getElementById("newApptOverlay");
+const newApptForm = document.getElementById("newApptForm");
+const naError = document.getElementById("naError");
+
+document.getElementById("openNewAppt").addEventListener("click", () => {
+  newApptForm.reset();
+  naError.textContent = "";
+  newApptOverlay.classList.add("is-open");
+});
+document.getElementById("closeNewAppt").addEventListener("click", () => newApptOverlay.classList.remove("is-open"));
+newApptOverlay.addEventListener("click", (e) => { if (e.target === newApptOverlay) newApptOverlay.classList.remove("is-open"); });
+
+newApptForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  naError.textContent = "";
+
+  const payload = {
+    nome: document.getElementById("naNome").value.trim(),
+    telefone: document.getElementById("naTelefone").value.trim(),
+    email: document.getElementById("naEmail").value.trim() || null,
+    especialidade: document.getElementById("naEspecialidade").value,
+    data: document.getElementById("naData").value,
+    hora: document.getElementById("naHora").value,
+    mensagem: document.getElementById("naMensagem").value.trim() || null,
+    status: "confirmado"
+  };
+
+  const { data: livre, error: rpcError } = await sb.rpc("horario_disponivel", { p_data: payload.data, p_hora: payload.hora });
+  if (rpcError) { naError.textContent = "Não foi possível verificar o horário. Tente de novo."; return; }
+  if (livre === false) { naError.textContent = "Esse horário já está ocupado."; return; }
+
+  const { error } = await sb.from("agendamentos").insert(payload);
+  if (error) {
+    naError.textContent = String(error.message || "").indexOf("duplicate") !== -1
+      ? "Esse horário acabou de ser ocupado. Escolha outro."
+      : "Não foi possível salvar. Tente novamente.";
+    return;
+  }
+
+  newApptOverlay.classList.remove("is-open");
+  await loadAppointments();
+});
+</script>
+</body>
+</html>
